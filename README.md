@@ -6,7 +6,7 @@
 A retro-style, turn-based RPG game built entirely with vanilla JavaScript. This project explores advanced DOM manipulation, CSS animations, and procedural sound generation using the Web Audio API.
 
 ## 🎮 Live Demo
-**[CLICK HERE TO PLAY]** (https://mfcan10.github.io/Dragon-Repeller-RPG/)
+**[CLICK HERE TO PLAY](https://mfcan10.github.io/Dragon-Repeller-RPG/)**
 
 ---
 
