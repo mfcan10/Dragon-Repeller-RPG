@@ -189,7 +189,7 @@ body {
     opacity: 0.5;
 }
 
-/* Win/Lose Overlay Styles */
+
 .overlay {
     display: none;
     position: fixed;
@@ -379,7 +379,7 @@ body {
     animation: loseFadeOut 2s ease-in-out;
 }
 
-/* Player Death Animation */
+
 @keyframes playerDeath {
     0% {
         transform: rotate(0deg) scale(1);
