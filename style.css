@@ -21,7 +21,16 @@ body {
 #stats {
     border: 1px black solid;
     padding: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
+
+#statsContent {
+    display: flex;
+    align-items: center;
+}
+
 #monsterStats {
     display: none;
     border: 1px black solid;
@@ -31,6 +40,11 @@ body {
 }
 .stat {
     padding-right: 10px;
+}
+
+#resetButton {
+    padding: 5px 10px;
+    cursor: pointer;
 }
 
 #locationImageContainer {

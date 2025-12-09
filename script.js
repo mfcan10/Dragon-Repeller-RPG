@@ -31,6 +31,7 @@ const winTitle = document.getElementById("winTitle");
 const loseTitle = document.getElementById("loseTitle");
 const locationImage = document.getElementById("locationImage");
 const locationImageContainer = document.getElementById("locationImageContainer");
+const resetButton = document.getElementById("resetButton");
 
 
 let audioContext;
@@ -294,6 +295,214 @@ function updateStats() {
     xpText.innerText = xp;
     healthText.innerText = health;
     goldText.innerText = gold;
+    saveGame();
+}
+
+async function encryptData(data) {
+    try {
+        const keyString = "DRAGON_REPELLER_2024_SECURE_KEY";
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(data);
+        
+        const keyMaterial = await crypto.subtle.importKey(
+            "raw",
+            encoder.encode(keyString),
+            { name: "PBKDF2" },
+            false,
+            ["deriveBits", "deriveKey"]
+        );
+        
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const key = await crypto.subtle.deriveKey(
+            {
+                name: "PBKDF2",
+                salt: salt,
+                iterations: 100000,
+                hash: "SHA-256"
+            },
+            keyMaterial,
+            { name: "AES-GCM", length: 256 },
+            false,
+            ["encrypt"]
+        );
+        
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encrypted = await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: iv },
+            key,
+            dataBuffer
+        );
+        
+        const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+        combined.set(salt, 0);
+        combined.set(iv, salt.length);
+        combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+        
+        return btoa(String.fromCharCode(...combined));
+    } catch (e) {
+        return fallbackEncrypt(data);
+    }
+}
+
+async function decryptData(encryptedData) {
+    try {
+        const keyString = "DRAGON_REPELLER_2024_SECURE_KEY";
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        
+        const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+        const salt = combined.slice(0, 16);
+        const iv = combined.slice(16, 28);
+        const encrypted = combined.slice(28);
+        
+        const keyMaterial = await crypto.subtle.importKey(
+            "raw",
+            encoder.encode(keyString),
+            { name: "PBKDF2" },
+            false,
+            ["deriveBits", "deriveKey"]
+        );
+        
+        const key = await crypto.subtle.deriveKey(
+            {
+                name: "PBKDF2",
+                salt: salt,
+                iterations: 100000,
+                hash: "SHA-256"
+            },
+            keyMaterial,
+            { name: "AES-GCM", length: 256 },
+            false,
+            ["decrypt"]
+        );
+        
+        const decrypted = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv },
+            key,
+            encrypted
+        );
+        
+        return decoder.decode(decrypted);
+    } catch (e) {
+        return fallbackDecrypt(encryptedData);
+    }
+}
+
+function fallbackEncrypt(data) {
+    const key = "DRAGON_REPELLER_2024_SECURE_KEY_X";
+    const salt = Math.random().toString(36).substring(2, 15);
+    let encrypted = "";
+    
+    for (let i = 0; i < data.length; i++) {
+        const charCode = data.charCodeAt(i);
+        const keyChar = key.charCodeAt(i % key.length);
+        const saltChar = salt.charCodeAt(i % salt.length);
+        const encryptedChar = charCode ^ keyChar ^ saltChar;
+        encrypted += String.fromCharCode(encryptedChar);
+    }
+    
+    return btoa(salt + ":" + encrypted);
+}
+
+function fallbackDecrypt(encryptedData) {
+    try {
+        const key = "DRAGON_REPELLER_2024_SECURE_KEY_X";
+        const decoded = atob(encryptedData);
+        const parts = decoded.split(":");
+        if (parts.length !== 2) return null;
+        
+        const salt = parts[0];
+        const encrypted = parts[1];
+        let decrypted = "";
+        
+        for (let i = 0; i < encrypted.length; i++) {
+            const encryptedChar = encrypted.charCodeAt(i);
+            const keyChar = key.charCodeAt(i % key.length);
+            const saltChar = salt.charCodeAt(i % salt.length);
+            const decryptedChar = encryptedChar ^ keyChar ^ saltChar;
+            decrypted += String.fromCharCode(decryptedChar);
+        }
+        
+        return decrypted;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function saveGame() {
+    const gameData = {
+        xp: xp,
+        gold: gold,
+        health: health,
+        currentWeapon: currentWeapon,
+        inventory: inventory
+    };
+    
+    const jsonData = JSON.stringify(gameData);
+    const encrypted = await encryptData(jsonData);
+    
+    try {
+        localStorage.setItem("dr_game_data", encrypted);
+    } catch (e) {
+        console.log("Failed to save game:", e);
+    }
+}
+
+async function loadGame() {
+    try {
+        const encrypted = localStorage.getItem("dr_game_data");
+        if (!encrypted) {
+            return false;
+        }
+        
+        const jsonData = await decryptData(encrypted);
+        if (!jsonData) {
+            return false;
+        }
+        
+        const gameData = JSON.parse(jsonData);
+        
+        if (gameData.xp !== undefined) xp = gameData.xp;
+        if (gameData.gold !== undefined) gold = gameData.gold;
+        if (gameData.health !== undefined) health = gameData.health;
+        if (gameData.currentWeapon !== undefined) currentWeapon = gameData.currentWeapon;
+        if (gameData.inventory !== undefined) inventory = gameData.inventory;
+        
+        updateStats();
+        return true;
+    } catch (e) {
+        console.log("Failed to load game:", e);
+        return false;
+    }
+}
+
+function resetGame() {
+    if (confirm("Are you sure you want to reset the game? All progress will be lost!")) {
+        xp = 0;
+        gold = 50;
+        health = 100;
+        currentWeapon = 0;
+        inventory = ["stick"];
+        fighting = undefined;
+        monsterHealth = undefined;
+        
+        localStorage.removeItem("dr_game_data");
+        
+        updateStats();
+        goTown();
+        
+        if (monsterStats) {
+            monsterStats.style.display = "none";
+        }
+        if (combatArea) {
+            combatArea.style.display = "none";
+        }
+        if (locationImageContainer) {
+            locationImageContainer.style.display = "flex";
+        }
+        
+        text.innerText = "Game reset! Welcome to Dragon Repeller. You must defeat the dragon that is preventing people from leaving the town. You are in the town square. Where do you want to go? Use the buttons above.";
+    }
 }
 
 initAudio();
@@ -365,7 +574,10 @@ const locations = [
     }
 ];
 
-updateStats();
+(async function initGame() {
+    await loadGame();
+    updateStats();
+})();
 
 if (locationImage && locationImageContainer) {
     locationImage.src = locations[0].image;
@@ -384,6 +596,12 @@ button2.onclick = function() {
 button3.onclick = function() {
     resumeAudio();
     fightDragon();
+}
+
+if (resetButton) {
+    resetButton.onclick = function() {
+        resetGame();
+    }
 }
 
 function update(location){
@@ -433,9 +651,9 @@ function buyWeapon() {
         if (gold >= 30) {
             gold -= 30;
             currentWeapon++;
-            goldText.innerText = gold;
-            text.innerText = "You now have a " + weapons[currentWeapon].name + ".";
             inventory.push(weapons[currentWeapon].name);
+            updateStats();
+            text.innerText = "You now have a " + weapons[currentWeapon].name + ".";
         } else {
             text.innerText = "You do not have enough gold to buy a weapon.";
         }
@@ -451,7 +669,7 @@ function sellWeapon() {
         gold += 15;
         currentWeapon--;
         inventory.pop();
-        goldText.innerText = gold;
+        updateStats();
         text.innerText = "You sold a weapon for 15 gold.";
     }
 }
