@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dragon Repeller RPG</title>
+  <script type="module" crossorigin src="/assets/index-C2XG51gU.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Y_z25zKl.css">
+</head>
+
+<body>
+    <div id="app">
+        <div id="game">
+            <div id="stats">
+                <div id="statsContent">
+                    <div class="stat-container">
+                        <span class="stat-label">Health</span>
+                        <div class="progress-bar health-bar">
+                            <div id="healthFill" class="progress-fill" style="width: 100%"></div>
+                            <span id="healthText" class="progress-text">100</span>
+                        </div>
+                    </div>
+                    <div class="stat-container">
+                        <span class="stat-label">XP</span>
+                        <div class="progress-bar xp-bar">
+                            <div id="xpFill" class="progress-fill" style="width: 0%"></div>
+                            <span id="xpText" class="progress-text">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-container">
+                        <span class="stat-label">Gold</span>
+                        <span class="gold-display">💰 <span id="goldText">50</span></span>
+                    </div>
+                </div>
+                <button id="resetButton" class="btn-danger">Restart</button>
+            </div>
+            <div id="controls">
+                <button id="button1">Go to store</button>
+                <button id="button2">Go to cave</button>
+                <button id="button3">Fight dragon</button>
+            </div>
+            <div id="monsterStats" class="glass-panel">
+                <div class="monster-header">
+                    <span id="monsterName" class="monster-name">Monster</span>
+                    <span class="monster-level">Lv. ???</span>
+                </div>
+                <div class="progress-bar monster-bar">
+                    <div id="monsterHealthFill" class="progress-fill" style="width: 100%"></div>
+                    <span id="monsterHealth" class="progress-text"></span>
+                </div>
+            </div>
+            <div id="locationImageContainer">
+                <img id="locationImage" src="" alt="Location">
+            </div>
+            <div id="combatArea">
+                <div id="playerContainer">
+                    <div id="player">⚔️</div>
+                    <div id="playerName">You</div>
+                </div>
+                <div id="monsterContainer">
+                    <div id="monsterImage"></div>
+                    <div id="monsterNameDisplay"></div>
+                </div>
+            </div>
+            <div id="text">Welcome to Dragon Repeller. You must defeat the dragon that is preventing people from leaving
+                the town. You are in the town square. Where do you want to go? Use the buttons above.</div>
+        </div>
+        <div id="winOverlay" class="overlay">
+            <div id="winContent" class="overlay-content">
+                <div id="winIcon" class="win-icon-animate">🏆</div>
+                <h2 id="winTitle" class="win-title-animate">VICTORY!</h2>
+                <p id="winMessage"></p>
+                <button id="winRestart" class="btn-primary">Play Again</button>
+            </div>
+        </div>
+        <div id="loseOverlay" class="overlay">
+            <div id="loseContent" class="overlay-content">
+                <div id="loseIcon" class="lose-icon-animate">💀</div>
+                <h2 id="loseTitle" class="lose-title-animate">DEFEATED</h2>
+                <p id="loseMessage"></p>
+                <button id="loseRestart" class="btn-primary">Try Again</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
