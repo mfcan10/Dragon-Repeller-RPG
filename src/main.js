@@ -4,9 +4,14 @@ import { state } from './modules/state';
 import { storage } from './modules/storage';
 import { ui } from './modules/ui';
 import { CombatSystem } from './modules/combat';
+import { GameEngine } from './modules/engine';
+import { maps } from './modules/maps';
 
 const audio = new AudioController();
 const combatSystem = new CombatSystem(state, audio, ui);
+
+// 2D Engine
+let gameEngine = null;
 
 const monsters = [
     { name: "slime", level: 2, health: 15, image: "🟢" },
@@ -25,14 +30,14 @@ const locations = [
     {
         name: "town square",
         "button text": ["Go to store", "Go to cave", "Fight dragon"],
-        "button functions": [goStore, goCave, fightDragon],
-        text: "You are in the town square. You see a sign that says 'Town'.",
+        "button functions": [goStoreMenu, goCaveMap, fightDragon],
+        text: "You are in the town square. Use ARROW KEYS to move.",
         image: "https://images.unsplash.com/photo-1515542622106-78bda8ba0e5b?w=800&h=600&fit=crop",
         imageClass: "town"
     },
     {
         name: "store",
-        "button text": ["Buy 10 health (10 gold)", "Buy weapon (30 gold)", "Go to town square"],
+        "button text": ["Buy 10 health (10 gold)", "Buy weapon (30 gold)", "Back to Town"],
         "button functions": [buyHealth, buyWeapon, goTown],
         text: "You are in the store. You see a sign that says 'Store'.",
         image: "https://images.unsplash.com/photo-1708409858781-30df7a234f2d?w=800&h=600&fit=crop",
@@ -40,13 +45,48 @@ const locations = [
     },
     {
         name: "cave",
-        "button text": ["Fight slime", "Fight fanged beast", "Go to town square"],
+        "button text": ["Fight slime", "Fight fanged beast", "Back to Town"],
         "button functions": [fightSlime, fightBeast, goTown],
-        text: "You are in the cave. You see a sign that says 'Cave'.",
+        text: "You are in the cave. Use ARROW KEYS to find monsters.",
         image: "https://images.unsplash.com/photo-1517239320384-e08ad2c24a3e?w=800&h=600&fit=crop",
         imageClass: "cave"
     }
 ];
+
+function handleZoneChange(zone) {
+    if (zone === "store") {
+        goStoreMenu();
+    } else if (zone === "cave") {
+        goCaveMap();
+    } else if (zone === "town") {
+        goTown();
+    } else if (zone === "slime") {
+        fightSlime();
+    } else if (zone === "beast") {
+        fightBeast();
+    } else if (zone === "dragon") {
+        fightDragon();
+    }
+}
+
+// Ensure Canvas Visibility Control
+function showCanvas(visible) {
+    const canvasContainer = document.getElementById("game-canvas-container");
+    const controls = document.getElementById("controls");
+    const locationImg = document.getElementById("locationImageContainer");
+
+    if (visible) {
+        canvasContainer.style.display = "flex";
+        controls.style.display = "none";
+        locationImg.style.display = "none";
+        if (gameEngine) gameEngine.start();
+    } else {
+        canvasContainer.style.display = "none";
+        controls.style.display = "grid";
+        locationImg.style.display = "flex";
+        if (gameEngine) gameEngine.stop();
+    }
+}
 
 function update(location) {
     ui.updateLocation(location, location["button functions"]);
@@ -54,14 +94,19 @@ function update(location) {
 
 function goTown() {
     update(locations[0]);
+    if (gameEngine) gameEngine.loadMap(maps.town);
+    showCanvas(true);
 }
 
-function goStore() {
+function goStoreMenu() {
     update(locations[1]);
+    showCanvas(false);
 }
 
-function goCave() {
+function goCaveMap(spawnX, spawnY) {
     update(locations[2]);
+    if (gameEngine) gameEngine.loadMap(maps.cave, spawnX, spawnY);
+    showCanvas(true);
 }
 
 function buyHealth() {
@@ -119,6 +164,7 @@ function fightDragon() {
 }
 
 function goFight() {
+    showCanvas(false); // Hide map during combat
     const monster = monsters[state.fighting];
     state.monsterHealth = monster.health;
     ui.showCombat(monster);
@@ -130,7 +176,15 @@ function goFight() {
     ui.elements.button3.innerText = "Run";
     ui.elements.button1.onclick = attack;
     ui.elements.button2.onclick = dodge;
-    ui.elements.button3.onclick = goTown;
+    ui.elements.button3.onclick = () => {
+        // Run back to Cave Map, specific tunnel entrance (Safe Zones)
+        // Using integer Y to align perfectly with the 1-tile wide tunnels
+        if (state.fighting === 0) goCaveMap(3.5, 2);  // Slime Path (Row 2)
+        else if (state.fighting === 1) goCaveMap(11.5, 2); // Beast Path (Row 2)
+        else if (state.fighting === 2) goCaveMap(11.5, 8); // Dragon Path (Row 8)
+        else goCaveMap();
+
+    };
 }
 
 async function attack() {
@@ -146,7 +200,6 @@ async function attack() {
         state.fighting === 2 ? winGame() : defeatMonster();
     }
 
-    // Auto-save on interaction
     storage.save(state.serialize());
 }
 
@@ -165,25 +218,41 @@ function defeatMonster() {
     state.xp += monsters[state.fighting].level;
     ui.updateStats(state);
     ui.setMessage('The monster screams "Arg!" as it dies. You gain experience points and find gold.');
-    ui.elements.button1.innerText = "Go to town square";
-    ui.elements.button2.innerText = "Go to town square";
-    ui.elements.button3.innerText = "Go to town square";
-    ui.elements.button1.onclick = goTown;
-    ui.elements.button2.onclick = goTown;
-    ui.elements.button3.onclick = goTown;
+
+    // Reset buttons to return to Cave Map
+    ui.elements.button1.innerText = "Back to Map";
+    ui.elements.button2.innerText = "Back to Map";
+    ui.elements.button3.innerText = "Back to Map";
+
+    const returnToMap = () => {
+        // Return to specific tunnel (Safe Zones)
+        if (state.fighting === 0) goCaveMap(3.5, 2);
+        else if (state.fighting === 1) goCaveMap(11.5, 2);
+        else if (state.fighting === 2) goCaveMap(11.5, 8);
+        else goCaveMap();
+
+        ui.elements.combatArea.style.display = "none";
+        ui.elements.monsterStats.style.display = "none";
+    };
+
+
+    ui.elements.button1.onclick = returnToMap;
+    ui.elements.button2.onclick = returnToMap;
+    ui.elements.button3.onclick = returnToMap;
 }
 
 function lose() {
     ui.updateStats(state);
     ui.showLoseOverlay("You have died. The dragon reclaims the town.");
     audio.playLoseMusic();
-    ui.elements.button1.disabled = true; // Prevent further interaction
+    if (gameEngine) gameEngine.stop();
 }
 
 function winGame() {
     ui.updateStats(state);
     ui.showWinOverlay("You defeat the dragon! THE TOWN IS SAVED!");
     audio.playWinMusic();
+    if (gameEngine) gameEngine.stop();
 }
 
 function restart() {
@@ -191,9 +260,9 @@ function restart() {
         storage.reset();
         state.reset();
         ui.updateStats(state);
+
         goTown();
 
-        // Hide overlays
         ui.elements.winOverlay.classList.remove("win-overlay-show");
         ui.elements.loseOverlay.classList.remove("lose-overlay-show");
         ui.elements.button1.disabled = false;
@@ -207,7 +276,12 @@ async function init() {
     }
 
     ui.updateStats(state);
-    goTown(); // Initial view
+
+    // Initialize 2D Engine
+    gameEngine = new GameEngine("gameCanvas", handleZoneChange);
+
+    // Start in Town
+    goTown();
 
     if (document.getElementById("resetButton")) {
         document.getElementById("resetButton").onclick = restart;
@@ -216,8 +290,6 @@ async function init() {
     if (ui.elements.winRestart) ui.elements.winRestart.onclick = restart;
     if (ui.elements.loseRestart) ui.elements.loseRestart.onclick = restart;
 
-
-    // Audio context resume on first interaction
     document.body.onclick = () => {
         audio.resume();
     };

@@ -41,6 +41,24 @@ body {
     overflow: hidden;
 }
 
+#game-canvas-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px 0;
+    border: 2px solid var(--glass-border);
+    border-radius: 12px;
+    background: #000;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+canvas {
+    image-rendering: pixelated;
+    /* Retro look */
+    width: 100%;
+    height: auto;
+}
+
 /* Stats Area */
 #stats {
     display: flex;
